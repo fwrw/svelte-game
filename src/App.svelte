@@ -2,20 +2,39 @@
   import { onMount } from "svelte";
 
   // Player (atributos do jogador)
-  let player = {
-    top: 0, // Posição inicial no eixo Y
-    left: 0, // Posição inicial no eixo X
-    width: 50,
-    height: 50,
+  class Player {
+    top: number;
+    bottom: number;
 
-    right: function() {
-      return this.left + this.width
-    },
+    left: number;
+    right: number;
+    
+    height: number;
+    width: number;
 
-    bottom: function() {
-      return this.top + this.height;
+    calcRight(): void {
+      this.right = this.left + this.width
+    };
+
+    calcBottom(): void {
+      this.bottom = this.top + this.height
+    };
+
+    constructor(top: number, left: number, height: number, width: number) {
+      this.top = top
+      this.left = left
+      
+      this.height = height
+      this.width = width
+      
+
+      this.right = this.left + this.width
+      this.bottom = this.top + this.height
     }
-  };
+  }
+
+
+  let player: Player = new Player(0, 0, 50, 50)
 
   // Lista de obstáculos
   let obstacles = [
@@ -35,117 +54,97 @@
   // Função para verificar colisão com qualquer obstáculo
   function checkCollision() {
     return obstacles.some(obstacle => {
-      const playerRight = player.left + player.width;
-      const playerBottom = player.top + player.height;
 
       const obstacleRight = obstacle.left + obstacle.width;
       const obstacleBottom = obstacle.top + obstacle.height;
 
       return (
         player.left < obstacleRight &&
-        player.right() > obstacle.left &&
+        player.right > obstacle.left &&
         player.top < obstacleBottom &&
-        player.bottom() > obstacle.top
+        player.bottom > obstacle.top
       );
     });
   }
 
   // Função para mover o player
-  function movePlayer(direction: string) {
+  function movePlayer(event: KeyboardEvent) {
     const step = 10; // Quantidade de pixels por movimento
-    const previousPosition = { ...player }; // Armazena a posição antes de mover
+    const previousPosition = { ...player }; // Copia os atributos do player em um novo objeto
 
-    switch (direction) {
-      case 'up':
-        player.top = Math.max(player.top - step, 0);
-        break;
-      case 'down':
-        player.top = Math.min(player.top + step, 700 - player.height);
-        break;
-      case 'left':
-        player.left = Math.max(player.left - step, 0);
-        break;
-      case 'right':
-        player.left = Math.min(player.left + step, 1200 - player.width);
-        break;
-    }
-
-    // Voltar para a posição anterior se colidir
-    if (checkCollision()) {
-      player = { ...previousPosition };
-    }
-  }
-
-  // Captura eventos do teclado
-  function handleKeydown(event: KeyboardEvent) {
     switch (event.key) {
       case 'ArrowUp':
-        movePlayer('up');
+        player.top = Math.max(player.top - step, 0);
+        player.calcBottom()
         break;
       case 'ArrowDown':
-        movePlayer('down');
+        player.top = Math.min(player.top + step, 700 - player.height);
+        player.calcBottom()
         break;
       case 'ArrowLeft':
-        movePlayer('left');
+        player.left = Math.max(player.left - step, 0);
+        player.calcRight()
+
         break;
       case 'ArrowRight':
-        movePlayer('right');
+        player.left = Math.min(player.left + step, 1200 - player.width);
+        player.calcRight()
         break;
+    }
+
+    if (checkCollision()) {
+      player = new Player(previousPosition.top, previousPosition.left, previousPosition.height, previousPosition.width); // Caso ocorra uma colisão, retorna o player para a posição anterior
     }
   }
 
-  // Adiciona o evento ao carregar o componente
   onMount(() => {
-    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keydown', movePlayer);
     return () => {
-      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('keydown', movePlayer);
     };
   });
 </script>
 
-<div class="game border border-zinc-50 mt-20 relative">
-  <!-- Player -->
-  <div
-    class={`player border border-indigo-900 bg-pink-500`}
-    style="
-      position: absolute;
-      top: {player.top}px;
-      left: {player.left}px;
-      width: {player.width}px;
-      height: {player.height}px;
-    "
-  ></div>
-
-  <!-- Obstáculos -->
-  {#each obstacles as obstacle}
+<div class="flex flex-row">
+  
+  <!-- Mapa (Game) -->
+  <div class="game border border-zinc-50 m-20 relative">
+    <!-- Player -->
     <div
-      class="obstacle border border-pink-900 bg-blue-800"
-      style="
-        position: absolute;
-        top: {obstacle.top}px;
-        left: {obstacle.left}px;
-        width: {obstacle.width}px;
-        height: {obstacle.height}px;
-      "
-    >
-      {obstacle.left}, {obstacle.top}
+      class="player border border-indigo-900 bg-pink-500"
+      style="position: absolute; top: {player.top}px; left: {player.left}px; width: {player.width}px; height: {player.height}px;">
+    </div>
+  
+    <!-- Obstáculos -->
+    {#each obstacles as obstacle}
+      <div
+        class="obstacle border border-pink-900 bg-blue-800"
+        style="position: absolute; top: {obstacle.top}px; left: {obstacle.left}px; width: {obstacle.width}px; height: {obstacle.height}px;">
+        {obstacle.left}, {obstacle.top}
+      </div>
+    {/each}
+
   </div>
-  {/each}
+
+  <!-- Painel de Dados (Data) -->
+  <div class="data flex flex-col border mt-20 mx-10 border-zinc-50 h-full w-64">
+    <span>player left: {player.left}</span>
+    <span>player top: {player.top}</span>
+    <span>player right: {player.right}</span>
+    <span>player bottom: {player.bottom}</span>
+  </div>
+
 </div>
 
-<div class="data flex flex-col">
-  <span>player left: {player.left}</span>
-  <span>player top: {player.top}</span>
 
-
-</div>
 
 <style>
   .game {
     height: 700px;
     width: 1200px;
     position: relative;
-    overflow: hidden;
   }
+
+
 
 </style>
