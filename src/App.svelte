@@ -12,6 +12,8 @@
     height: number;
     width: number;
 
+    lastDirection: string = ''
+
     calcRight(): void {
       this.right = this.left + this.width
     };
@@ -20,7 +22,7 @@
       this.bottom = this.top + this.height
     };
 
-    constructor(top: number, left: number, height: number, width: number) {
+    constructor(top: number, left: number, height: number, width: number, lastDirection?: string) {
       this.top = top
       this.left = left
       
@@ -30,6 +32,45 @@
 
       this.right = this.left + this.width
       this.bottom = this.top + this.height
+    }
+  }
+
+
+  let bullets: any = [];
+
+  function shoot() {
+    const speed = 30;
+    let dx = 0, dy = 0;
+
+    switch (player.lastDirection) {
+      case "up": dy = -speed; break;
+      case "down": dy = speed; break;
+      case "left": dx = -speed; break;
+      case "right": dx = speed; break;
+    }
+
+    bullets.push({
+      top: player.top + player.height / 2 - 5,
+      left: player.left + player.width / 2 - 5,
+      width: 10,
+      height: 10,
+      dx,
+      dy
+    });
+  }
+
+  function updateBullets() {
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      bullets[i].top += bullets[i].dy;
+      bullets[i].left += bullets[i].dx;
+
+      // Remover balas que saíram da tela
+      if (
+        bullets[i].top < 0 || bullets[i].top > 700 ||
+        bullets[i].left < 0 || bullets[i].left > 1200
+      ) {
+        bullets.splice(i, 1);
+      }
     }
   }
 
@@ -68,7 +109,7 @@
   }
 
   // Função para mover o player
-  function movePlayer(event: KeyboardEvent) {
+  function playerControls(event: KeyboardEvent) {
     const step = 10; // Quantidade de pixels por movimento
     const previousPosition = { ...player }; // Copia os atributos do player em um novo objeto
 
@@ -76,33 +117,45 @@
       case 'ArrowUp':
         player.top = Math.max(player.top - step, 0);
         player.calcBottom()
+        player.lastDirection = 'up'
         break;
       case 'ArrowDown':
         player.top = Math.min(player.top + step, 700 - player.height);
         player.calcBottom()
+        player.lastDirection = 'down'
         break;
       case 'ArrowLeft':
         player.left = Math.max(player.left - step, 0);
         player.calcRight()
-
+        player.lastDirection = 'left'
         break;
       case 'ArrowRight':
         player.left = Math.min(player.left + step, 1200 - player.width);
         player.calcRight()
+        player.lastDirection = 'right'
         break;
     }
 
     if (checkCollision()) {
-      player = new Player(previousPosition.top, previousPosition.left, previousPosition.height, previousPosition.width); // Caso ocorra uma colisão, retorna o player para a posição anterior
+      player = new Player(previousPosition.top, previousPosition.left, previousPosition.height, previousPosition.width, previousPosition.lastDirection); // Caso ocorra uma colisão, retorna o player para a posição anterior
     }
-  }
 
-  onMount(() => {
-    window.addEventListener('keydown', movePlayer);
+    if(event.key == " ") shoot()
+  }
+    let interval
+    onMount(() => {
+    interval = setInterval(updateBullets, 16); // Atualizar a cada 16ms (~60 FPS)
+
+
+    window.addEventListener('keydown', playerControls);
+    window.addEventListener('keydown', playerControls);
     return () => {
-      window.removeEventListener('keydown', movePlayer);
+      window.removeEventListener('keydown', playerControls);
+
     };
-  });
+  })
+  
+  ;
 </script>
 
 <div class="flex flex-row">
@@ -123,6 +176,19 @@
         {obstacle.left}, {obstacle.top}
       </div>
     {/each}
+
+    {#each bullets as bullet}
+    <div
+      class="bullet bg-yellow-400"
+      style="
+        position: absolute;
+        top: {bullet.top}px;
+        left: {bullet.left}px;
+        width: {bullet.width}px;
+        height: {bullet.height}px;
+      "
+    ></div>
+  {/each}
 
   </div>
 
@@ -145,6 +211,11 @@
     position: relative;
   }
 
+
+  .bullet {
+    position: absolute;
+    border-radius: 50%;
+  }
 
 
 </style>
